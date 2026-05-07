@@ -28,8 +28,8 @@ export default function Header() {
               <Plant size={22} weight="duotone" color="#FDFBF7" />
             </div>
             <div className="leading-none">
-              <div className="font-display font-extrabold text-xl text-forest">AgriMart</div>
-              <div className="text-[10px] uppercase tracking-[0.2em] text-stone-500">Farm Essentials</div>
+              <div className="font-display font-extrabold text-xl text-forest">Seed &amp; Spray</div>
+              <div className="text-[10px] uppercase tracking-[0.2em] text-stone-500">Sown right. Sprayed smart.</div>
             </div>
           </Link>
 

@@ -75,10 +75,10 @@ export default function Checkout() {
             <h3 className="font-display font-bold text-xl mb-5">Payment Method</h3>
             <div className="grid md:grid-cols-2 gap-4">
               <PayOption icon={Money} label="Cash on Delivery" desc="Pay when your order arrives" value="COD" current={payment} onSelect={setPayment} testid="pay-cod" />
-              <PayOption icon={CreditCard} label="Online Payment" desc="UPI / cards / netbanking (demo)" value="ONLINE" current={payment} onSelect={setPayment} testid="pay-online" />
+              <PayOption icon={CreditCard} label="Online Payment" desc="UPI / cards / netbanking via Razorpay" value="ONLINE" current={payment} onSelect={setPayment} testid="pay-online" />
             </div>
             {payment === "ONLINE" && (
-              <p className="mt-4 text-xs text-ochre">Online payment is currently in demo mode — order will be marked as paid for testing.</p>
+              <p className="mt-4 text-xs text-stone-600">Pay securely via Razorpay (UPI, cards, netbanking, wallets). Test mode active — use UPI <span className="font-mono">success@razorpay</span> or test card <span className="font-mono">4111 1111 1111 1111</span>.</p>
             )}
           </div>
         </div>

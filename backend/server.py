@@ -6,9 +6,12 @@ load_dotenv(ROOT_DIR / '.env')
 
 import os
 import uuid
+import hmac
+import hashlib
 import logging
 import bcrypt
 import jwt
+import razorpay
 from datetime import datetime, timezone, timedelta
 from typing import List, Optional, Literal
 
@@ -24,8 +27,13 @@ client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
 # ----- App -----
-app = FastAPI(title="AgriMart API")
+app = FastAPI(title="Seed & Spray API")
 api = APIRouter(prefix="/api")
+
+# ----- Razorpay -----
+razorpay_client = razorpay.Client(
+    auth=(os.environ.get("RAZORPAY_KEY_ID", ""), os.environ.get("RAZORPAY_KEY_SECRET", ""))
+)
 
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRY_DAYS = 7
@@ -436,7 +444,7 @@ async def create_order(payload: OrderCreate, user: dict = Depends(get_current_us
         "total": round(total, 2),
         "address": payload.address.model_dump(),
         "payment_method": payload.payment_method,
-        "payment_status": "pending" if payload.payment_method == "COD" else "paid",
+        "payment_status": "pending",
         "status": "pending",
         "notes": payload.notes or "",
         "created_at": datetime.now(timezone.utc).isoformat(),
@@ -477,6 +485,70 @@ async def admin_update_order(order_id: str, payload: OrderStatusUpdate, _: dict 
     return {"ok": True}
 
 
+class PayVerifyIn(BaseModel):
+    razorpay_order_id: str
+    razorpay_payment_id: str
+    razorpay_signature: str
+
+
+@api.post("/orders/{order_id}/payment/create-razorpay")
+async def create_razorpay_order(order_id: str, user: dict = Depends(get_current_user)):
+    order = await db.orders.find_one({"id": order_id}, {"_id": 0})
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    if order["user_id"] != user["id"]:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    if order.get("payment_status") == "paid":
+        raise HTTPException(status_code=400, detail="Order already paid")
+    amount_paise = int(round(order["total"] * 100))
+    rp_order = razorpay_client.order.create({
+        "amount": amount_paise,
+        "currency": "INR",
+        "receipt": order_id[:40],
+        "payment_capture": 1,
+        "notes": {"internal_order_id": order_id, "user_email": user["email"]},
+    })
+    await db.orders.update_one(
+        {"id": order_id},
+        {"$set": {"razorpay_order_id": rp_order["id"]}},
+    )
+    return {
+        "razorpay_order_id": rp_order["id"],
+        "amount": amount_paise,
+        "currency": "INR",
+        "key_id": os.environ["RAZORPAY_KEY_ID"],
+        "order_id": order_id,
+        "prefill": {
+            "name": user.get("name", ""),
+            "email": user.get("email", ""),
+            "contact": user.get("phone") or order["address"].get("phone", ""),
+        },
+    }
+
+
+@api.post("/orders/{order_id}/payment/verify")
+async def verify_razorpay_payment(order_id: str, payload: PayVerifyIn, user: dict = Depends(get_current_user)):
+    order = await db.orders.find_one({"id": order_id}, {"_id": 0})
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    if order["user_id"] != user["id"]:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    secret = os.environ["RAZORPAY_KEY_SECRET"].encode()
+    body = f"{payload.razorpay_order_id}|{payload.razorpay_payment_id}".encode()
+    expected = hmac.new(secret, body, hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(expected, payload.razorpay_signature):
+        raise HTTPException(status_code=400, detail="Invalid payment signature")
+    await db.orders.update_one(
+        {"id": order_id},
+        {"$set": {
+            "payment_status": "paid",
+            "razorpay_payment_id": payload.razorpay_payment_id,
+            "razorpay_signature": payload.razorpay_signature,
+        }},
+    )
+    return {"ok": True, "order_id": order_id, "payment_status": "paid"}
+
+
 @api.get("/admin/stats")
 async def admin_stats(_: dict = Depends(require_admin)):
     total_orders = await db.orders.count_documents({})
@@ -498,7 +570,7 @@ async def admin_stats(_: dict = Depends(require_admin)):
 # ----- Health -----
 @api.get("/")
 async def root():
-    return {"message": "AgriMart API running", "version": "1.0"}
+    return {"message": "Seed & Spray API running", "version": "1.1"}
 
 
 # ----- Seed -----

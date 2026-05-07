@@ -26,7 +26,7 @@ export default function Login() {
     <div className="min-h-[80vh] flex items-center justify-center px-4 py-16 bg-topo">
       <div className="bg-white/95 backdrop-blur rounded-3xl border border-stone-200 shadow-xl w-full max-w-md p-8 md:p-10">
         <div className="label-eyebrow mb-3">Welcome back</div>
-        <h1 className="font-display font-extrabold text-3xl text-stone-900">Sign in to AgriMart</h1>
+        <h1 className="font-display font-extrabold text-3xl text-stone-900">Sign in to Seed &amp; Spray</h1>
         <p className="text-stone-500 mt-2 text-sm">New customer? <Link to="/register" className="text-forest font-semibold hover:underline">Create an account</Link></p>
 
         <form onSubmit={submit} className="mt-8 space-y-4">
@@ -38,7 +38,7 @@ export default function Login() {
         </form>
 
         <div className="mt-6 text-xs text-stone-500 bg-stone-50 rounded-xl p-3">
-          Demo admin: <span className="font-mono">admin@agrimart.com</span> / <span className="font-mono">Admin@123</span>
+          Demo admin: <span className="font-mono">admin@seedandspray.in</span> / <span className="font-mono">Admin@123</span>
         </div>
       </div>
     </div>

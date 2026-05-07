@@ -46,14 +46,14 @@ export default function Footer() {
             <h4 className="font-display font-bold text-white mb-4">Reach Us</h4>
             <ul className="space-y-3 text-sm">
               <li className="flex items-center gap-2"><Phone size={16} /> +91 98765 43210</li>
-              <li className="flex items-center gap-2"><EnvelopeSimple size={16} /> hello@agrimart.in</li>
+              <li className="flex items-center gap-2"><EnvelopeSimple size={16} /> hello@seedandspray.in</li>
               <li className="flex items-center gap-2"><MapPin size={16} /> Pune, Maharashtra</li>
             </ul>
           </div>
         </div>
 
         <div className="mt-12 pt-8 border-t border-stone-800 flex flex-col md:flex-row gap-4 justify-between text-xs text-stone-500">
-          <div>© {new Date().getFullYear()} AgriMart. All rights reserved.</div>
+          <div>© {new Date().getFullYear()} Seed &amp; Spray. All rights reserved.</div>
           <div className="flex gap-6">
             <a href="#" className="hover:text-white">Privacy</a>
             <a href="#" className="hover:text-white">Terms</a>

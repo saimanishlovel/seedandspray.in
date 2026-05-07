@@ -25,6 +25,10 @@
 - Sticky glass header with search, cart badge, mobile menu
 - Toast notifications via Sonner
 
+## Implemented (Feb 2026 — v1.1)
+- **Rebrand AgriMart → Seed & Spray** across header, footer, login, HTML title, admin seed email (`admin@seedandspray.in`)
+- **Razorpay payment integration (TEST keys live)** — backend creates Razorpay order with `/api/orders/{id}/payment/create-razorpay`, frontend opens Razorpay JS checkout, success path verifies HMAC SHA256 signature server-side and flips order to `payment_status=paid`. Razorpay JS SDK loaded from CDN in `index.html`. Test card `4111 1111 1111 1111` works.
+
 ## Mocked / Pending
 - **Online payment** is demo-only — orders are auto-marked paid. Real Stripe/Razorpay integration deferred.
 - **Phone OTP login** not implemented (would need Twilio).
