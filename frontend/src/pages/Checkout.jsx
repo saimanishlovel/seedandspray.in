@@ -61,7 +61,7 @@ export default function Checkout() {
               <h3 className="font-display font-bold text-xl">Delivery Address</h3>
             </div>
             <div className="grid md:grid-cols-2 gap-4">
-              <Input label="Full name" required value={form.full_name} onChange={onChange("full_name")} testid="addr-name" />
+              <Input label="Full name" required value={form.full_name} onChange={onChange("full_name")} testid="addr-fullname" />
               <Input label="Phone" required value={form.phone} onChange={onChange("phone")} testid="addr-phone" />
               <Input label="Address line 1" required value={form.line1} onChange={onChange("line1")} className="md:col-span-2" testid="addr-line1" />
               <Input label="Address line 2 (optional)" value={form.line2} onChange={onChange("line2")} className="md:col-span-2" testid="addr-line2" />
