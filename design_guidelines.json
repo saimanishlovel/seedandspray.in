@@ -1,0 +1,165 @@
+{
+  "theme": "Light",
+  "archetype": "1 (Organic & Earthy)",
+  "rationale": "For an agriculture and farming e-commerce platform, the user needs to feel grounded, secure, and connected to nature. The 'Organic & Earthy' archetype maps perfectly, utilizing deep forest greens, warm sand base colors, and amber accents to communicate both natural growth and professional reliability.",
+  "colors": {
+    "background": {
+      "default": "#FDFBF7",
+      "surface": "#FFFFFF",
+      "description": "Warm off-white sand base to avoid clinical starkness and emulate a natural environment."
+    },
+    "primary": {
+      "default": "#14532D",
+      "hover": "#166534",
+      "foreground": "#FFFFFF",
+      "description": "Deep Forest Green. Used sparingly for main branding, primary navigation, and high-level structure."
+    },
+    "accent": {
+      "default": "#D97706",
+      "hover": "#B45309",
+      "foreground": "#FFFFFF",
+      "description": "Earthy Amber/Ochre. High visibility accent used for critical conversion actions like 'Add to Cart' and 'Checkout'."
+    },
+    "text": {
+      "primary": "#1C1917",
+      "secondary": "#57534E",
+      "inverse": "#FDFBF7"
+    },
+    "border": {
+      "subtle": "#E7E5E4",
+      "focus": "#14532D"
+    },
+    "state": {
+      "success": "#15803D",
+      "warning": "#CA8A04",
+      "error": "#DC2626"
+    }
+  },
+  "typography": {
+    "headings": {
+      "fontFamily": "Outfit, sans-serif",
+      "weights": ["400", "700", "800"],
+      "tracking": "tracking-tight",
+      "description": "Rugged, structural sans-serif that balances modern e-commerce with industrial reliability.",
+      "scales": {
+        "h1": "text-5xl md:text-6xl+",
+        "h2": "text-3xl md:text-4xl",
+        "h3": "text-2xl"
+      }
+    },
+    "body": {
+      "fontFamily": "Manrope, sans-serif",
+      "weights": ["400", "500", "600"],
+      "tracking": "tracking-normal",
+      "description": "Clean, highly legible humanist sans-serif. Perfect for detailed agricultural product specs and reading.",
+      "scales": {
+        "large": "text-lg",
+        "base": "text-base",
+        "small": "text-sm",
+        "label": "text-xs uppercase tracking-[0.2em]"
+      }
+    }
+  },
+  "layout_and_spacing": {
+    "philosophy": "Generous Spacing / E1 The Tetris Grid",
+    "container": "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8",
+    "bento_grid": {
+      "base": "grid grid-cols-1 md:grid-cols-8 lg:grid-cols-12 gap-8",
+      "spans": {
+        "hero_element": "col-span-full md:col-span-8 row-span-2",
+        "supporting": "col-span-4 row-span-1",
+        "tall_vertical": "col-span-4 row-span-2"
+      }
+    },
+    "spacing_scale": {
+      "section_padding": "py-24",
+      "card_padding": "p-8 md:p-12"
+    },
+    "border_radius": "rounded-2xl"
+  },
+  "surfaces_and_textures": {
+    "header": {
+      "style": "Glassmorphism (Optical Clarity)",
+      "classes": "bg-white/70 backdrop-blur-xl border-b border-stone-200 shadow-sm"
+    },
+    "cards": {
+      "style": "Tactile / Clean",
+      "classes": "bg-white rounded-2xl border border-stone-200 shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
+    },
+    "hero_overlay": {
+      "style": "Gradient Overlay for Text Contrast",
+      "classes": "bg-gradient-to-r from-stone-900/70 via-stone-900/40 to-transparent"
+    }
+  },
+  "components": {
+    "strategy": "Hybrid",
+    "marketing_sections": "Pure HTML/Tailwind for bento grids, hero sections, and category showcases.",
+    "interactive_elements": "Shadcn UI customized (Forms, Dialogs, Select, Dropdowns).",
+    "forms": "Use Shadcn Form, Input, Checkbox. Replace raw HTML inputs.",
+    "icons": {
+      "library": "@phosphor-icons/react",
+      "weight": "regular (duotone for accents)",
+      "installation": "yarn add @phosphor-icons/react"
+    },
+    "buttons": {
+      "primary": "bg-[#14532D] text-white hover:bg-[#166534] rounded-full px-6 py-3 font-medium transition-colors",
+      "accent": "bg-[#D97706] text-white hover:bg-[#B45309] rounded-full px-8 py-4 font-bold text-lg transition-colors shadow-lg hover:shadow-xl",
+      "outline": "border-2 border-stone-200 text-[#1C1917] hover:border-[#14532D] rounded-full px-6 py-3 font-medium transition-colors"
+    }
+  },
+  "animations": {
+    "hover": "transform scale-105 duration-300 ease-out",
+    "page_transitions": "Framer Motion layout animations",
+    "scrolling": "lenis smooth scrolling for premium feel",
+    "microinteractions": "Subtle translate-y on cards, button press scale down."
+  },
+  "media": {
+    "rules": "No pure black overlays on images. Let images breathe. Product imagery must be crisp.",
+    "urls": {
+      "hero_tractor": {
+        "url": "https://images.unsplash.com/photo-1776771519532-5ff46dc29461?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMjd8MHwxfHNlYXJjaHwzfHxtb2Rlcm4lMjBhZ3JpY3VsdHVyZSUyMHRyYWN0b3IlMjBmYXJtaW5nfGVufDB8fHx8MTc3ODE2ODI1Mnww&ixlib=rb-4.1.0&q=85",
+        "description": "Green tractor parked outdoors. Use for main e-commerce hero banner background with gradient overlay.",
+        "category": "hero"
+      },
+      "hero_topographic_bg": {
+        "url": "https://static.prod-images.emergentagent.com/jobs/228099b1-d69e-446a-bd0c-79e5ab5a1a28/images/5b522066c2ccd6dfc20dc0174a89f3b06025de12763ebac248548938b16d7b9d.png",
+        "description": "Abstract topographic map pattern. Perfect for subtle background textures on feature sections or the checkout page.",
+        "category": "background"
+      },
+      "category_seeds": {
+        "url": "https://images.unsplash.com/photo-1693307297659-61e4ee3de0ba?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1Nzh8MHwxfHNlYXJjaHwxfHxhZ3JpY3VsdHVyZSUyMHNlZWRzJTIwZmFybWluZ3xlbnwwfHx8fDE3NzgxNjgyNTJ8MA&ixlib=rb-4.1.0&q=85",
+        "description": "Person holding handful of seeds. Use for the Seeds product category card.",
+        "category": "product_category"
+      },
+      "category_tools": {
+        "url": "https://images.unsplash.com/photo-1705113998946-1eefc7961c24?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1OTV8MHwxfHNlYXJjaHwzfHxmYXJtaW5nJTIwdG9vbHMlMjBzaG92ZWx8ZW58MHx8fHwxNzc4MTY4MjUyfDA&ixlib=rb-4.1.0&q=85",
+        "description": "Farming tools (shovels/forks) laying on ground. Use for the Farm Tools product category card.",
+        "category": "product_category"
+      },
+      "category_sprayers": {
+        "url": "https://static.prod-images.emergentagent.com/jobs/228099b1-d69e-446a-bd0c-79e5ab5a1a28/images/5ea2c1fc4f82ea695857f5edc10fec3ebaff859f11b3490c573a1cc7bf4a8634.png",
+        "description": "High-tech 3D render of an agriculture drone sprayer. Use for the Sprayers/Tech product category card.",
+        "category": "product_category"
+      },
+      "category_machinery": {
+        "url": "https://images.unsplash.com/photo-1763416160482-c77fadd32d3f?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMjd8MHwxfHNlYXJjaHwyfHxtb2Rlcm4lMjBhZ3JpY3VsdHVyZSUyMHRyYWN0b3IlMjBmYXJtaW5nfGVufDB8fHx8MTc3ODE2ODI1Mnww&ixlib=rb-4.1.0&q=85",
+        "description": "Tractor with large sprayer attachment in a field. Use for Machinery product category card.",
+        "category": "product_category"
+      }
+    }
+  },
+  "testing": {
+    "attributes": "All interactive elements must include data-testid attributes (e.g., data-testid='add-to-cart-button', data-testid='category-link')."
+  },
+  "instructions_to_main_agent": [
+    "Install requested font families: Outfit and Manrope.",
+    "Install @phosphor-icons/react for iconography.",
+    "Construct the e-commerce home page using the bento grid methodology detailed above. Provide high-quality visual asymmetry.",
+    "Implement product filtering and catalog layout with generous spacing and distinct separation. Avoid cramped grid displays.",
+    "Ensure 'Add to Cart' buttons use the Accent color (#D97706) for high contrast and conversion optimization.",
+    "Add the subtle topographic background texture image behind key sections (like the 'About us' or 'Value Props') to enrich the visual depth.",
+    "Use standard HTML inputs mixed with Shadcn components, prioritizing Shadcn for all complex UI like modals, dropdowns, and date pickers.",
+    "Use pure HTML and Tailwind for foundational marketing page layout structures (bento grids, cards).",
+    "Integrate the placeholder urls EXACTLY as formatted."
+  ]
+}
