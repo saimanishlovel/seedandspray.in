@@ -1,17 +1,51 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { toast } from "sonner";
 import api, { formatErr } from "../lib/api";
 import { EnvelopeSimple, Phone } from "@phosphor-icons/react";
 
+let msg91ScriptLoaded = false;
+
+function loadMsg91Script() {
+  return new Promise((resolve, reject) => {
+    if (msg91ScriptLoaded && window.initSendOTP) return resolve();
+    const urls = [
+      "https://verify.msg91.com/otp-provider.js",
+      "https://verify.phone91.com/otp-provider.js",
+    ];
+    let i = 0;
+    const tryLoad = () => {
+      const s = document.createElement("script");
+      s.src = urls[i];
+      s.async = true;
+      s.onload = () => {
+        msg91ScriptLoaded = true;
+        resolve();
+      };
+      s.onerror = () => {
+        i++;
+        if (i < urls.length) tryLoad();
+        else reject(new Error("MSG91 script failed to load"));
+      };
+      document.head.appendChild(s);
+    };
+    tryLoad();
+  });
+}
+
 export default function Login() {
   const { login, refresh } = useAuth();
   const navigate = useNavigate();
   const [mode, setMode] = useState("email");
   const [email, setEmail] = useState({ email: "", password: "" });
-  const [otp, setOtp] = useState({ phone: "", code: "", sent: false, sending: false });
+  const [phone, setPhone] = useState("");
+  const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
+  const [cfg, setCfg] = useState(null);
+  const initialised = useRef(false);
+
+  useEffect(() => { api.get("/site-config").then((r) => setCfg(r.data)).catch(() => {}); }, []);
 
   const submitEmail = async (e) => {
     e.preventDefault();
@@ -22,25 +56,13 @@ export default function Login() {
     else toast.error(r.error);
   };
 
-  const sendOtp = async () => {
-    if (!otp.phone || otp.phone.length < 10) return toast.error("Enter a valid phone number");
-    setOtp({ ...otp, sending: true });
+  const verifyOnServer = async (accessToken) => {
     try {
-      const { data } = await api.post("/auth/otp/send", { phone: otp.phone });
-      setOtp({ ...otp, sent: true, sending: false });
-      if (data.sent_via === "sms") toast.success("OTP sent via SMS");
-      else toast.message("OTP sent (check console — Twilio sender not configured yet)");
-    } catch (e) {
-      setOtp({ ...otp, sending: false });
-      toast.error(formatErr(e));
-    }
-  };
-
-  const verifyOtp = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      const { data } = await api.post("/auth/otp/verify", { phone: otp.phone, code: otp.code });
+      const { data } = await api.post("/auth/msg91/verify", {
+        access_token: accessToken,
+        phone: phone || undefined,
+        name: name || undefined,
+      });
       localStorage.setItem("agrimart_token", data.token);
       await refresh();
       toast.success("Logged in!");
@@ -48,6 +70,48 @@ export default function Login() {
     } catch (err) {
       toast.error(formatErr(err));
     } finally {
+      setLoading(false);
+    }
+  };
+
+  const startMsg91 = async (e) => {
+    e.preventDefault();
+    if (!phone || phone.length < 10) return toast.error("Enter a valid 10-digit phone");
+    if (!cfg?.msg91?.widget_id || !cfg?.msg91?.token_auth) {
+      return toast.error("MSG91 not configured on server");
+    }
+    setLoading(true);
+    try {
+      await loadMsg91Script();
+      const normalised = phone.startsWith("+") ? phone : `91${phone.replace(/\D/g, "").slice(-10)}`;
+      const configuration = {
+        widgetId: cfg.msg91.widget_id,
+        tokenAuth: cfg.msg91.token_auth,
+        identifier: normalised,
+        exposeMethods: false,
+        success: (data) => {
+          // data.message is usually the JWT access-token string
+          const accessToken = (data && (data.message || data.token || data["access-token"])) || data;
+          if (typeof accessToken !== "string") {
+            toast.error("MSG91 returned unexpected response");
+            setLoading(false);
+            return;
+          }
+          verifyOnServer(accessToken);
+        },
+        failure: (err) => {
+          toast.error(err?.message || "OTP cancelled");
+          setLoading(false);
+        },
+      };
+      if (typeof window.initSendOTP === "function") {
+        window.initSendOTP(configuration);
+      } else {
+        toast.error("MSG91 widget not loaded yet, try again");
+        setLoading(false);
+      }
+    } catch (err) {
+      toast.error("Failed to load MSG91 OTP widget");
       setLoading(false);
     }
   };
@@ -77,17 +141,13 @@ export default function Login() {
             </button>
           </form>
         ) : (
-          <form onSubmit={otp.sent ? verifyOtp : (e) => { e.preventDefault(); sendOtp(); }} className="mt-6 space-y-4">
-            <Field label="Phone (10 digits)" type="tel" required disabled={otp.sent} value={otp.phone} onChange={(e) => setOtp({ ...otp, phone: e.target.value })} testid="login-phone" placeholder="9876543210" />
-            {otp.sent && (
-              <Field label="6-digit OTP" required value={otp.code} onChange={(e) => setOtp({ ...otp, code: e.target.value })} testid="login-otp-code" placeholder="123456" maxLength={6} />
-            )}
-            <button type="submit" disabled={loading || otp.sending} data-testid="login-otp-submit" className="btn-primary w-full justify-center inline-flex disabled:opacity-50">
-              {otp.sending ? "Sending..." : otp.sent ? (loading ? "Verifying..." : "Verify & Sign in") : "Send OTP"}
+          <form onSubmit={startMsg91} className="mt-6 space-y-4">
+            <Field label="Phone (10 digits)" type="tel" required value={phone} onChange={(e) => setPhone(e.target.value)} testid="login-phone" placeholder="9876543210" />
+            <Field label="Your name (new customers)" value={name} onChange={(e) => setName(e.target.value)} testid="login-name" placeholder="Optional" />
+            <button type="submit" disabled={loading} data-testid="login-msg91-submit" className="btn-primary w-full justify-center inline-flex disabled:opacity-50">
+              {loading ? "Opening..." : "Continue with OTP"}
             </button>
-            {otp.sent && (
-              <button type="button" onClick={() => setOtp({ phone: otp.phone, code: "", sent: false, sending: false })} className="block w-full text-center text-xs text-stone-500 hover:text-forest">Change phone number</button>
-            )}
+            <p className="text-xs text-stone-500 text-center">Powered by MSG91 — secure OTP delivered via SMS to your phone.</p>
           </form>
         )}
 

@@ -620,6 +620,10 @@ async def site_config():
         "tagline_en": "Best solutions for farmers",
         "tagline_te": "రైతుల కోసం ఉత్తమ పరిష్కారాలు",
         "logo_url": "https://customer-assets.emergentagent.com/job_harvest-commerce-11/artifacts/bxmnrpko_EDFC146D-03D8-4C47-9335-66933D3D31B3.png",
+        "msg91": {
+            "widget_id": os.environ.get("MSG91_WIDGET_ID", ""),
+            "token_auth": os.environ.get("MSG91_TOKEN_AUTH", ""),
+        },
         "business": {
             "name": os.environ.get("BUSINESS_NAME", ""),
             "address": os.environ.get("BUSINESS_ADDRESS", ""),
@@ -723,6 +727,62 @@ async def otp_verify(payload: OtpVerifyIn):
         await db.users.insert_one(user)
     token = create_token(user["id"], user["email"], user.get("role", "customer"))
     return AuthResponse(user=user_doc_to_out(user), token=token)
+
+
+class Msg91VerifyIn(BaseModel):
+    access_token: str
+    phone: Optional[str] = None
+    name: Optional[str] = None
+
+
+@api.post("/auth/msg91/verify", response_model=AuthResponse)
+async def msg91_verify(payload: Msg91VerifyIn):
+    """Verify MSG91 widget access-token server-side, then issue our JWT."""
+    auth_key = os.environ.get("MSG91_AUTH_KEY")
+    if not auth_key:
+        raise HTTPException(status_code=500, detail="MSG91 not configured")
+    async with httpx.AsyncClient(timeout=20) as cli:
+        r = await cli.post(
+            "https://control.msg91.com/api/v5/widget/verifyAccessToken",
+            json={"authkey": auth_key, "access-token": payload.access_token},
+            headers={"Content-Type": "application/json"},
+        )
+    try:
+        data = r.json()
+    except Exception:
+        raise HTTPException(status_code=502, detail=f"MSG91 invalid response: {r.text[:200]}")
+    type_ok = str(data.get("type", "")).lower() == "success"
+    if r.status_code != 200 or not type_ok:
+        raise HTTPException(status_code=400, detail=f"MSG91 verify failed: {str(data)[:200]}")
+
+    msg = data.get("message") if isinstance(data.get("message"), dict) else {}
+    verified_phone = (
+        data.get("phone")
+        or data.get("mobile")
+        or msg.get("mobile")
+        or msg.get("phone")
+        or payload.phone
+    )
+    if not verified_phone:
+        raise HTTPException(status_code=400, detail="No phone returned from MSG91; pass phone in payload")
+    phone = normalise_phone(str(verified_phone))
+
+    user = await db.users.find_one({"phone": phone}, {"_id": 0})
+    if not user:
+        user_id = str(uuid.uuid4())
+        user = {
+            "id": user_id,
+            "email": f"phone_{user_id[:8]}@phone.local",
+            "name": payload.name or f"Customer {phone[-4:]}",
+            "phone": phone,
+            "password_hash": hash_password(uuid.uuid4().hex),
+            "role": "customer",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+        await db.users.insert_one(user)
+    token = create_token(user["id"], user["email"], user.get("role", "customer"))
+    return AuthResponse(user=user_doc_to_out(user), token=token)
+
 
 
 # ----- Shiprocket: Ship an order -----

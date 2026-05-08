@@ -29,7 +29,10 @@
 - **Rebrand AgriMart → Seed & Spray** across header, footer, login, HTML title, admin seed email (`admin@seedandspray.in`)
 - **Razorpay payment integration (TEST keys live)** — backend creates Razorpay order with `/api/orders/{id}/payment/create-razorpay`, frontend opens Razorpay JS checkout, success path verifies HMAC SHA256 signature server-side and flips order to `payment_status=paid`. Razorpay JS SDK loaded from CDN in `index.html`. Test card `4111 1111 1111 1111` works.
 
-## Implemented (Feb 2026 — v2.0 "Rythu Shubham")
+## Implemented (Feb 2026 — v2.1 MSG91)
+- **Switched OTP from Twilio → MSG91 widget**. Frontend Login Phone-OTP tab loads MSG91 widget via CDN (`verify.msg91.com/otp-provider.js`), opens their hosted OTP modal. Backend endpoint `/api/auth/msg91/verify` calls `https://control.msg91.com/api/v5/widget/verifyAccessToken` with the widget access-token + auth key, then issues our JWT (auto-creates customer on first verify).
+- Site-config endpoint now exposes `msg91.widget_id` + `msg91.token_auth` so frontend can configure widget without hardcoding.
+- WhatsApp notifications: deferred at user request.
 - **Final brand: Rythu Shubham** (రైతుల కోసం ఉత్తమ పరిష్కారాలు = "best solutions for farmers"). Logo from user attachment integrated into header + footer.
 - **Phone OTP login (Twilio)** — `/api/auth/otp/send` + `/api/auth/otp/verify`. Auto-creates customer on first verify. Falls back to console-mode logging when `TWILIO_FROM_NUMBER` not set so dev/UAT works.
 - **Shiprocket integration** — token cached for 9 days, `/api/admin/orders/{id}/ship` creates adhoc order + auto-assigns AWB; `/api/orders/{id}/tracking` for customer tracking. Pickup location: `Primary` (Mahabubabad).
