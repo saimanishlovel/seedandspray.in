@@ -7,8 +7,8 @@ import requests
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://harvest-commerce-11.preview.emergentagent.com').rstrip('/')
 API = f"{BASE_URL}/api"
 
-ADMIN_EMAIL = "admin@agrimart.com"
-ADMIN_PASSWORD = "Admin@123"
+ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "admin@seedandspray.in")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "Admin@123")
 
 
 @pytest.fixture(scope="session")

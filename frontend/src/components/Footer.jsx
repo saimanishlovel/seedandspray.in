@@ -1,11 +1,14 @@
-import { Plant, EnvelopeSimple, Phone, MapPin, Receipt } from "@phosphor-icons/react";
+import { EnvelopeSimple, Phone, MapPin, Receipt } from "@phosphor-icons/react";
 import { Link } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import api from "../lib/api";
 
 export default function Footer() {
   const [cfg, setCfg] = useState(null);
-  useEffect(() => { api.get("/site-config").then((r) => setCfg(r.data)).catch(() => {}); }, []);
+  const fetchCfg = useCallback(async () => {
+    try { const r = await api.get("/site-config"); setCfg(r.data); } catch {}
+  }, []);
+  useEffect(() => { fetchCfg(); }, [fetchCfg]);
   const biz = cfg?.business || {};
   return (
     <footer className="bg-stone-900 text-stone-300 mt-24">

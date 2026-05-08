@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Navigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import api, { formatPrice } from "../lib/api";
-import { Package, MapPin, User } from "@phosphor-icons/react";
+import { Package } from "@phosphor-icons/react";
 
 const STATUS_COLORS = {
   pending: "bg-amber-100 text-amber-800",

@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback } from "react";
+import { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react";
 import api from "../lib/api";
 import { useAuth } from "./AuthContext";
 import { toast } from "sonner";
@@ -57,8 +57,13 @@ export const CartProvider = ({ children }) => {
 
   const itemCount = cart.items.reduce((s, it) => s + it.quantity, 0);
 
+  const value = useMemo(
+    () => ({ cart, loading, addToCart, updateQty, removeItem, clearCart, refresh, itemCount }),
+    [cart, loading, refresh, itemCount]
+  );
+
   return (
-    <CartContext.Provider value={{ cart, loading, addToCart, updateQty, removeItem, clearCart, refresh, itemCount }}>
+    <CartContext.Provider value={value}>
       {children}
     </CartContext.Provider>
   );
