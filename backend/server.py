@@ -374,10 +374,15 @@ async def delete_product(product_id: str, _: dict = Depends(require_admin)):
 async def get_cart(user: dict = Depends(get_current_user)):
     cart = await db.carts.find_one({"user_id": user["id"]}, {"_id": 0})
     items = cart["items"] if cart else []
+    if not items:
+        return {"items": [], "subtotal": 0.0}
+    pids = [it["product_id"] for it in items]
+    products = await db.products.find({"id": {"$in": pids}}, {"_id": 0}).to_list(len(pids))
+    pmap = {p["id"]: p for p in products}
     detailed = []
     subtotal = 0.0
     for it in items:
-        p = await db.products.find_one({"id": it["product_id"]}, {"_id": 0})
+        p = pmap.get(it["product_id"])
         if not p:
             continue
         line = p["price"] * it["quantity"]
@@ -455,10 +460,14 @@ async def create_order(payload: OrderCreate, user: dict = Depends(get_current_us
     cart = await db.carts.find_one({"user_id": user["id"]})
     if not cart or not cart.get("items"):
         raise HTTPException(status_code=400, detail="Cart is empty")
+    cart_items = cart["items"]
+    pids = [it["product_id"] for it in cart_items]
+    products = await db.products.find({"id": {"$in": pids}}, {"_id": 0}).to_list(len(pids))
+    pmap = {p["id"]: p for p in products}
     items = []
     subtotal = 0.0
-    for it in cart["items"]:
-        p = await db.products.find_one({"id": it["product_id"]}, {"_id": 0})
+    for it in cart_items:
+        p = pmap.get(it["product_id"])
         if not p:
             continue
         line = p["price"] * it["quantity"]
