@@ -211,6 +211,7 @@ function Field({ label, className = "", ...rest }) {
 
 function OrdersAdmin() {
   const [orders, setOrders] = useState([]);
+  const [shippingId, setShippingId] = useState(null);
   const refresh = () => api.get("/admin/orders").then((r) => setOrders(r.data));
   useEffect(() => { refresh(); }, []);
 
@@ -220,6 +221,23 @@ function OrdersAdmin() {
       toast.success("Order updated");
       refresh();
     } catch (e) { toast.error(formatErr(e)); }
+  };
+
+  const shipNow = async (id) => {
+    setShippingId(id);
+    try {
+      const { data } = await api.post(`/admin/orders/${id}/ship`);
+      if (data.awb_code) {
+        toast.success(`Shipped! AWB ${data.awb_code} via ${data.courier_name || "courier"}`);
+      } else {
+        toast.message("Shipment created in Shiprocket. AWB pending — check Shiprocket panel.");
+      }
+      refresh();
+    } catch (e) {
+      toast.error(formatErr(e));
+    } finally {
+      setShippingId(null);
+    }
   };
 
   return (
@@ -237,7 +255,7 @@ function OrdersAdmin() {
               <div>
                 <div className="text-xs uppercase tracking-wider text-stone-500">Total</div>
                 <div className="font-display font-bold">{formatPrice(o.total)}</div>
-                <div className="text-xs text-stone-500">{o.payment_method}</div>
+                <div className="text-xs text-stone-500">{o.payment_method} • <span className={o.payment_status === "paid" ? "text-green-700" : "text-stone-500"}>{o.payment_status}</span></div>
               </div>
               <div>
                 <div className="text-xs uppercase tracking-wider text-stone-500">Items</div>
@@ -256,8 +274,24 @@ function OrdersAdmin() {
                 </select>
               </div>
             </div>
-            <div className="mt-4 pt-4 border-t border-stone-100 text-xs text-stone-600">
-              Ship to: {o.address.full_name}, {o.address.line1}, {o.address.city}, {o.address.state} - {o.address.pincode} • {o.address.phone}
+            <div className="mt-4 pt-4 border-t border-stone-100 flex flex-wrap items-center justify-between gap-3 text-xs text-stone-600">
+              <div>Ship to: {o.address.full_name}, {o.address.line1}, {o.address.city}, {o.address.state} - {o.address.pincode} • {o.address.phone}</div>
+              <div className="flex items-center gap-2">
+                {o.awb_code ? (
+                  <a href={o.tracking_url || `https://shiprocket.co/tracking/${o.awb_code}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-forest font-semibold hover:underline">
+                    AWB {o.awb_code}{o.courier_name ? ` • ${o.courier_name}` : ""}
+                  </a>
+                ) : (
+                  <button
+                    onClick={() => shipNow(o.id)}
+                    disabled={shippingId === o.id}
+                    data-testid={`ship-${o.id}`}
+                    className="bg-forest text-white hover:bg-forest-light rounded-full px-4 py-1.5 text-xs font-semibold disabled:opacity-50"
+                  >
+                    {shippingId === o.id ? "Shipping..." : "Ship via Shiprocket"}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         ))}

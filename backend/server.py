@@ -8,9 +8,11 @@ import os
 import uuid
 import hmac
 import hashlib
+import random
 import logging
 import bcrypt
 import jwt
+import httpx
 import razorpay
 from datetime import datetime, timezone, timedelta
 from typing import List, Optional, Literal
@@ -20,6 +22,11 @@ from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, Field, EmailStr, ConfigDict
 
+try:
+    from twilio.rest import Client as TwilioClient
+except Exception:
+    TwilioClient = None
+
 
 # ----- DB -----
 mongo_url = os.environ['MONGO_URL']
@@ -27,13 +34,45 @@ client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
 # ----- App -----
-app = FastAPI(title="Seed & Spray API")
+app = FastAPI(title="Rythu Shubham API")
 api = APIRouter(prefix="/api")
 
 # ----- Razorpay -----
 razorpay_client = razorpay.Client(
     auth=(os.environ.get("RAZORPAY_KEY_ID", ""), os.environ.get("RAZORPAY_KEY_SECRET", ""))
 )
+
+
+# ----- Twilio (lazy init) -----
+def get_twilio():
+    sid = os.environ.get("TWILIO_ACCOUNT_SID")
+    token = os.environ.get("TWILIO_AUTH_TOKEN")
+    if not sid or not token or TwilioClient is None:
+        return None
+    return TwilioClient(sid, token)
+
+
+# ----- Shiprocket Auth (in-memory cached token) -----
+_SR_TOKEN = {"value": None, "expires": None}
+SR_BASE = "https://apiv2.shiprocket.in/v1/external"
+
+
+async def shiprocket_token() -> str:
+    now = datetime.now(timezone.utc)
+    if _SR_TOKEN["value"] and _SR_TOKEN["expires"] and now < _SR_TOKEN["expires"]:
+        return _SR_TOKEN["value"]
+    email = os.environ.get("SHIPROCKET_EMAIL")
+    password = os.environ.get("SHIPROCKET_PASSWORD")
+    if not email or not password:
+        raise HTTPException(status_code=500, detail="Shiprocket credentials not configured")
+    async with httpx.AsyncClient(timeout=20) as cli:
+        r = await cli.post(f"{SR_BASE}/auth/login", json={"email": email, "password": password})
+        if r.status_code != 200:
+            raise HTTPException(status_code=502, detail=f"Shiprocket auth failed: {r.text[:200]}")
+        data = r.json()
+        _SR_TOKEN["value"] = data["token"]
+        _SR_TOKEN["expires"] = now + timedelta(days=9)
+        return data["token"]
 
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRY_DAYS = 7
@@ -570,7 +609,237 @@ async def admin_stats(_: dict = Depends(require_admin)):
 # ----- Health -----
 @api.get("/")
 async def root():
-    return {"message": "Seed & Spray API running", "version": "1.1"}
+    return {"message": "Rythu Shubham API running", "version": "2.0"}
+
+
+# ----- Site / Business Config -----
+@api.get("/site-config")
+async def site_config():
+    return {
+        "brand": "Rythu Shubham",
+        "tagline_en": "Best solutions for farmers",
+        "tagline_te": "రైతుల కోసం ఉత్తమ పరిష్కారాలు",
+        "logo_url": "https://customer-assets.emergentagent.com/job_harvest-commerce-11/artifacts/bxmnrpko_EDFC146D-03D8-4C47-9335-66933D3D31B3.png",
+        "business": {
+            "name": os.environ.get("BUSINESS_NAME", ""),
+            "address": os.environ.get("BUSINESS_ADDRESS", ""),
+            "phone": os.environ.get("BUSINESS_PHONE", ""),
+            "email": os.environ.get("BUSINESS_EMAIL", ""),
+            "gstin": os.environ.get("BUSINESS_GSTIN", ""),
+        },
+        "policies": {
+            "refund": "Non-returnable. All sales are final once dispatched.",
+            "shipping": "Pan-India shipping. Free delivery on orders above ₹1000.",
+        },
+    }
+
+
+# ----- Phone OTP (Twilio) -----
+class OtpSendIn(BaseModel):
+    phone: str = Field(min_length=10)
+
+
+class OtpVerifyIn(BaseModel):
+    phone: str
+    code: str
+    name: Optional[str] = None
+
+
+def normalise_phone(p: str) -> str:
+    p = p.strip().replace(" ", "").replace("-", "")
+    if not p.startswith("+"):
+        # default to India country code if 10 digits
+        digits = "".join(c for c in p if c.isdigit())
+        if len(digits) == 10:
+            p = "+91" + digits
+        else:
+            p = "+" + digits
+    return p
+
+
+@api.post("/auth/otp/send")
+async def otp_send(payload: OtpSendIn):
+    phone = normalise_phone(payload.phone)
+    code = f"{random.randint(100000, 999999)}"
+    expires = datetime.now(timezone.utc) + timedelta(minutes=10)
+    await db.otp_codes.update_one(
+        {"phone": phone},
+        {"$set": {"code": code, "expires_at": expires.isoformat(), "attempts": 0}},
+        upsert=True,
+    )
+    twilio = get_twilio()
+    sent_via = "console"
+    if twilio:
+        try:
+            sender = os.environ.get("TWILIO_FROM_NUMBER")
+            if sender:
+                twilio.messages.create(
+                    body=f"Your Rythu Shubham OTP is {code}. Valid 10 min.",
+                    from_=sender,
+                    to=phone,
+                )
+                sent_via = "sms"
+            else:
+                # No sender configured — fall back to console for dev
+                logger.info(f"[DEV-OTP] {phone} -> {code}")
+                sent_via = "console (no TWILIO_FROM_NUMBER)"
+        except Exception as e:
+            logger.error(f"Twilio send failed: {e}")
+            logger.info(f"[DEV-OTP] {phone} -> {code}")
+            sent_via = f"console (twilio error: {str(e)[:80]})"
+    else:
+        logger.info(f"[DEV-OTP] {phone} -> {code}")
+    return {"ok": True, "sent_via": sent_via}
+
+
+@api.post("/auth/otp/verify", response_model=AuthResponse)
+async def otp_verify(payload: OtpVerifyIn):
+    phone = normalise_phone(payload.phone)
+    rec = await db.otp_codes.find_one({"phone": phone}, {"_id": 0})
+    if not rec:
+        raise HTTPException(status_code=400, detail="No OTP found, please request again")
+    if datetime.fromisoformat(rec["expires_at"]) < datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="OTP expired")
+    if rec.get("attempts", 0) >= 5:
+        raise HTTPException(status_code=429, detail="Too many attempts")
+    if rec["code"] != payload.code.strip():
+        await db.otp_codes.update_one({"phone": phone}, {"$inc": {"attempts": 1}})
+        raise HTTPException(status_code=400, detail="Invalid OTP")
+    await db.otp_codes.delete_one({"phone": phone})
+
+    user = await db.users.find_one({"phone": phone}, {"_id": 0})
+    if not user:
+        # auto-create
+        user_id = str(uuid.uuid4())
+        user = {
+            "id": user_id,
+            "email": f"phone_{user_id[:8]}@phone.local",
+            "name": payload.name or f"Customer {phone[-4:]}",
+            "phone": phone,
+            "password_hash": hash_password(uuid.uuid4().hex),
+            "role": "customer",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+        await db.users.insert_one(user)
+    token = create_token(user["id"], user["email"], user.get("role", "customer"))
+    return AuthResponse(user=user_doc_to_out(user), token=token)
+
+
+# ----- Shiprocket: Ship an order -----
+@api.post("/admin/orders/{order_id}/ship")
+async def ship_order(order_id: str, _: dict = Depends(require_admin)):
+    order = await db.orders.find_one({"id": order_id}, {"_id": 0})
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    if order.get("awb_code"):
+        return {"ok": True, "awb_code": order["awb_code"], "courier_name": order.get("courier_name"), "tracking_url": order.get("tracking_url"), "message": "Already shipped"}
+
+    token = await shiprocket_token()
+    addr = order["address"]
+    items = []
+    total_weight = 0.5
+    for it in order["items"]:
+        items.append({
+            "name": it["name"][:80],
+            "sku": it["product_id"][:30],
+            "units": it["quantity"],
+            "selling_price": it["price"],
+        })
+        total_weight += 0.3 * it["quantity"]
+
+    pickup = os.environ.get("SHIPROCKET_PICKUP_LOCATION", "Primary")
+    payload = {
+        "order_id": order_id[:30],
+        "order_date": order["created_at"][:10],
+        "pickup_location": pickup,
+        "billing_customer_name": addr["full_name"].split(" ")[0] or addr["full_name"],
+        "billing_last_name": " ".join(addr["full_name"].split(" ")[1:]) or "-",
+        "billing_address": addr["line1"],
+        "billing_address_2": addr.get("line2", "") or "",
+        "billing_city": addr["city"],
+        "billing_pincode": addr["pincode"],
+        "billing_state": addr["state"],
+        "billing_country": "India",
+        "billing_email": order.get("user_email", os.environ.get("BUSINESS_EMAIL", "")),
+        "billing_phone": addr["phone"],
+        "shipping_is_billing": True,
+        "order_items": items,
+        "payment_method": "COD" if order["payment_method"] == "COD" else "Prepaid",
+        "sub_total": order["subtotal"],
+        "length": 15, "breadth": 15, "height": 10, "weight": round(total_weight, 2),
+    }
+
+    async with httpx.AsyncClient(timeout=30) as cli:
+        r = await cli.post(
+            f"{SR_BASE}/orders/create/adhoc",
+            headers={"Authorization": f"Bearer {token}"},
+            json=payload,
+        )
+        if r.status_code not in (200, 201):
+            raise HTTPException(status_code=502, detail=f"Shiprocket order failed: {r.text[:300]}")
+        data = r.json()
+        shipment_id = data.get("shipment_id")
+        if not shipment_id:
+            raise HTTPException(status_code=502, detail=f"No shipment_id from Shiprocket: {str(data)[:200]}")
+
+        # Auto-assign AWB
+        awb_resp = await cli.post(
+            f"{SR_BASE}/courier/assign/awb",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"shipment_id": shipment_id},
+        )
+        awb_data = {}
+        if awb_resp.status_code == 200:
+            awb_data = awb_resp.json().get("response", {}).get("data", {}) or awb_resp.json()
+
+    awb_code = awb_data.get("awb_code") or awb_data.get("awb")
+    courier_name = awb_data.get("courier_name", "")
+    tracking_url = f"https://shiprocket.co/tracking/{awb_code}" if awb_code else ""
+
+    await db.orders.update_one(
+        {"id": order_id},
+        {"$set": {
+            "shiprocket_shipment_id": shipment_id,
+            "shiprocket_order_id": data.get("order_id"),
+            "awb_code": awb_code,
+            "courier_name": courier_name,
+            "tracking_url": tracking_url,
+            "status": "shipped" if awb_code else "confirmed",
+        }},
+    )
+    return {
+        "ok": True,
+        "shipment_id": shipment_id,
+        "awb_code": awb_code,
+        "courier_name": courier_name,
+        "tracking_url": tracking_url,
+        "raw": awb_data if not awb_code else None,
+    }
+
+
+@api.get("/orders/{order_id}/tracking")
+async def order_tracking(order_id: str, user: dict = Depends(get_current_user)):
+    order = await db.orders.find_one({"id": order_id}, {"_id": 0})
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    if order["user_id"] != user["id"] and user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Forbidden")
+    awb = order.get("awb_code")
+    if not awb:
+        return {"awb_code": None, "status": order.get("status", "pending"), "events": [], "tracking_url": None}
+    token = await shiprocket_token()
+    async with httpx.AsyncClient(timeout=15) as cli:
+        r = await cli.get(f"{SR_BASE}/courier/track/awb/{awb}", headers={"Authorization": f"Bearer {token}"})
+        if r.status_code != 200:
+            return {"awb_code": awb, "status": order.get("status"), "events": [], "tracking_url": order.get("tracking_url"), "error": r.text[:200]}
+        data = r.json()
+    return {
+        "awb_code": awb,
+        "courier_name": order.get("courier_name"),
+        "tracking_url": order.get("tracking_url"),
+        "status": order.get("status"),
+        "raw": data,
+    }
 
 
 # ----- Seed -----
@@ -642,7 +911,7 @@ async def seed_admin():
         await db.users.insert_one({
             "id": str(uuid.uuid4()),
             "email": admin_email,
-            "name": "AgriMart Admin",
+            "name": "Rythu Shubham Admin",
             "phone": None,
             "password_hash": hash_password(admin_password),
             "role": "admin",

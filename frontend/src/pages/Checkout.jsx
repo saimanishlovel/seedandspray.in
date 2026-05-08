@@ -34,17 +34,67 @@ export default function Checkout() {
     e.preventDefault();
     setLoading(true);
     try {
-      const { data } = await api.post("/orders", {
+      const { data: order } = await api.post("/orders", {
         address: form,
         payment_method: payment,
         notes: "",
       });
-      toast.success("Order placed successfully!");
-      await refresh();
-      navigate(`/order-confirmed/${data.id}`);
+
+      if (payment === "COD") {
+        toast.success("Order placed successfully!");
+        await refresh();
+        navigate(`/order-confirmed/${order.id}`);
+        return;
+      }
+
+      const { data: rp } = await api.post(`/orders/${order.id}/payment/create-razorpay`);
+
+      if (!window.Razorpay) {
+        toast.error("Payment SDK not loaded. Please refresh.");
+        setLoading(false);
+        return;
+      }
+
+      const options = {
+        key: rp.key_id,
+        amount: rp.amount,
+        currency: rp.currency,
+        name: "Rythu Shubham",
+        description: `Order #${order.id.slice(0, 8).toUpperCase()}`,
+        order_id: rp.razorpay_order_id,
+        prefill: rp.prefill,
+        theme: { color: "#14532D" },
+        handler: async (resp) => {
+          try {
+            await api.post(`/orders/${order.id}/payment/verify`, {
+              razorpay_order_id: resp.razorpay_order_id,
+              razorpay_payment_id: resp.razorpay_payment_id,
+              razorpay_signature: resp.razorpay_signature,
+            });
+            toast.success("Payment successful!");
+            await refresh();
+            navigate(`/order-confirmed/${order.id}`);
+          } catch (err) {
+            toast.error(formatErr(err));
+          } finally {
+            setLoading(false);
+          }
+        },
+        modal: {
+          ondismiss: () => {
+            toast.message("Payment cancelled — order saved as unpaid. Retry from My Orders.");
+            setLoading(false);
+          },
+        },
+      };
+      const rz = new window.Razorpay(options);
+      rz.on("payment.failed", (resp) => {
+        toast.error(resp?.error?.description || "Payment failed");
+        setLoading(false);
+      });
+      rz.open();
     } catch (err) {
       toast.error(formatErr(err));
-    } finally {
       setLoading(false);
     }
   };

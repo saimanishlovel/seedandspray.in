@@ -24,12 +24,10 @@ export default function Header() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20 gap-6">
           <Link to="/" className="flex items-center gap-2 shrink-0" data-testid="logo-link">
-            <div className="w-10 h-10 rounded-xl bg-forest flex items-center justify-center">
-              <Plant size={22} weight="duotone" color="#FDFBF7" />
-            </div>
+            <img src="https://customer-assets.emergentagent.com/job_harvest-commerce-11/artifacts/bxmnrpko_EDFC146D-03D8-4C47-9335-66933D3D31B3.png" alt="Rythu Shubham" className="w-12 h-12 rounded-full object-cover" />
             <div className="leading-none">
-              <div className="font-display font-extrabold text-xl text-forest">Seed &amp; Spray</div>
-              <div className="text-[10px] uppercase tracking-[0.2em] text-stone-500">Sown right. Sprayed smart.</div>
+              <div className="font-display font-extrabold text-xl text-forest">Rythu Shubham</div>
+              <div className="text-[10px] uppercase tracking-[0.2em] text-stone-500">Best solutions for farmers</div>
             </div>
           </Link>
 

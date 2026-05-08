@@ -29,6 +29,14 @@
 - **Rebrand AgriMart → Seed & Spray** across header, footer, login, HTML title, admin seed email (`admin@seedandspray.in`)
 - **Razorpay payment integration (TEST keys live)** — backend creates Razorpay order with `/api/orders/{id}/payment/create-razorpay`, frontend opens Razorpay JS checkout, success path verifies HMAC SHA256 signature server-side and flips order to `payment_status=paid`. Razorpay JS SDK loaded from CDN in `index.html`. Test card `4111 1111 1111 1111` works.
 
+## Implemented (Feb 2026 — v2.0 "Rythu Shubham")
+- **Final brand: Rythu Shubham** (రైతుల కోసం ఉత్తమ పరిష్కారాలు = "best solutions for farmers"). Logo from user attachment integrated into header + footer.
+- **Phone OTP login (Twilio)** — `/api/auth/otp/send` + `/api/auth/otp/verify`. Auto-creates customer on first verify. Falls back to console-mode logging when `TWILIO_FROM_NUMBER` not set so dev/UAT works.
+- **Shiprocket integration** — token cached for 9 days, `/api/admin/orders/{id}/ship` creates adhoc order + auto-assigns AWB; `/api/orders/{id}/tracking` for customer tracking. Pickup location: `Primary` (Mahabubabad).
+- **Site config endpoint** `/api/site-config` returning brand, logo, business details (Sri Laxmi Ganesh Seeds and Sprayers, GSTIN 36AKAPC6623R1ZX, Mahabubabad address) — frontend Footer is now dynamic.
+- **Admin Orders** — "Ship via Shiprocket" button per order; once shipped shows AWB + courier link to Shiprocket tracking.
+- **Login screen** — Email/Password tab + Phone OTP tab.
+
 ## Mocked / Pending
 - **Online payment** is demo-only — orders are auto-marked paid. Real Stripe/Razorpay integration deferred.
 - **Phone OTP login** not implemented (would need Twilio).

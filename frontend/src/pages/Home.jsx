@@ -27,10 +27,10 @@ export default function Home() {
             <div className="relative z-10 h-full flex flex-col justify-end p-8 md:p-14">
               <div className="label-eyebrow !text-ochre mb-4">From soil to harvest</div>
               <h1 className="font-display font-extrabold text-white text-4xl md:text-6xl lg:text-7xl leading-[1.05] tracking-tight max-w-2xl">
-                Everything your farm <span className="text-ochre">grows on.</span>
+                Best solutions for <span className="text-ochre">your farm.</span>
               </h1>
               <p className="text-stone-200/90 mt-5 text-lg max-w-xl">
-                Certified seeds, rugged sprayers, modern machinery and trusted hand-tools — sourced from leading brands and delivered to your village.
+                Rythu Shubham — certified seeds, rugged sprayers, modern machinery and trusted hand-tools, sourced from leading brands and delivered across India.
               </p>
               <div className="flex flex-wrap gap-3 mt-8">
                 <Link to="/shop" data-testid="hero-shop-btn" className="btn-accent inline-flex items-center gap-2">
