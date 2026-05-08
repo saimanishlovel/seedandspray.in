@@ -867,6 +867,20 @@ async def ship_order(order_id: str, _: dict = Depends(require_admin)):
             "status": "shipped" if awb_code else "confirmed",
         }},
     )
+
+    # Notify customer via MSG91 SMS (best-effort; only if MSG91_TEMPLATE_ID set)
+    if awb_code:
+        try:
+            await msg91_send_ship_sms(
+                phone=order["address"].get("phone", ""),
+                customer_name=order["address"].get("full_name", "Customer"),
+                order_short=order_id[:8].upper(),
+                awb_code=awb_code,
+                tracking_url=tracking_url,
+            )
+        except Exception as e:
+            logger.warning(f"MSG91 SMS notify failed (non-fatal): {e}")
+
     return {
         "ok": True,
         "shipment_id": shipment_id,
@@ -875,6 +889,39 @@ async def ship_order(order_id: str, _: dict = Depends(require_admin)):
         "tracking_url": tracking_url,
         "raw": awb_data if not awb_code else None,
     }
+
+
+async def msg91_send_ship_sms(phone: str, customer_name: str, order_short: str, awb_code: str, tracking_url: str):
+    """Send shipment-notification SMS via MSG91 Flow API.
+    Requires MSG91_TEMPLATE_ID (DLT-approved). Logs to console if not set."""
+    template_id = os.environ.get("MSG91_TEMPLATE_ID")
+    auth_key = os.environ.get("MSG91_AUTH_KEY")
+    body = f"Dear {customer_name}, your Rythu Shubham order {order_short} has shipped. AWB {awb_code}. Track: {tracking_url} - Sri Laxmi Ganesh Seeds & Sprayers"
+    if not template_id or not auth_key:
+        logger.info(f"[SMS-SKIP no MSG91_TEMPLATE_ID] would send to {phone}: {body}")
+        return
+    if not phone:
+        return
+    p = phone.replace("+", "").replace(" ", "")
+    if len(p) == 10:
+        p = "91" + p
+    async with httpx.AsyncClient(timeout=15) as cli:
+        r = await cli.post(
+            "https://control.msg91.com/api/v5/flow/",
+            headers={"Content-Type": "application/json", "authkey": auth_key},
+            json={
+                "template_id": template_id,
+                "short_url": "1",
+                "recipients": [{
+                    "mobiles": p,
+                    "name": customer_name,
+                    "order_id": order_short,
+                    "awb": awb_code,
+                    "tracking_url": tracking_url,
+                }],
+            },
+        )
+        logger.info(f"MSG91 flow SMS to {p}: {r.status_code} {r.text[:200]}")
 
 
 @api.get("/orders/{order_id}/tracking")
