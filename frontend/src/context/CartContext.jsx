@@ -37,31 +37,40 @@ export const CartProvider = ({ children }) => {
     await refresh();
     toast.success("Added to cart");
     return true;
-  };
+  }, [user, refresh]);
 
-  const updateQty = async (product_id, quantity) => {
+  const updateQty = useCallback(async (product_id, quantity) => {
     if (quantity < 1) return removeItem(product_id);
     await api.put(`/cart/items/${product_id}`, { product_id, quantity });
     await refresh();
-  };
+  }, [refresh]);
 
-  const removeItem = async (product_id) => {
+  const removeItem = useCallback(async (product_id) => {
     await api.delete(`/cart/items/${product_id}`);
     await refresh();
-  };
+  }, [refresh]);
 
-  const clearCart = async () => {
+  const clearCart = useCallback(async () => {
     await api.delete("/cart");
     await refresh();
-  };
+  }, [refresh]);
 
   const itemCount = cart.items.reduce((s, it) => s + it.quantity, 0);
 
   const value = useMemo(
-   () => ({ cart, loading, addToCart, updateQty, removeItem, clearCart, refresh, itemCount }),
-   [cart, loading, addToCart, updateQty, removeItem, clearCart, refresh, itemCount]
-);
-  
+    () => ({
+      cart,
+      loading,
+      addToCart,
+      updateQty,
+      removeItem,
+      clearCart,
+      refresh,
+      itemCount
+    }),
+    [cart, loading, addToCart, updateQty, removeItem, clearCart, refresh, itemCount]
+  );
+
   return (
     <CartContext.Provider value={value}>
       {children}
