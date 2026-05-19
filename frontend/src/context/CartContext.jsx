@@ -28,7 +28,7 @@ export const CartProvider = ({ children }) => {
     refresh();
   }, [refresh]);
 
-  const addToCart = async (product_id, quantity = 1) => {
+  const addToCart = useCallback(async (product_id, quantity = 1) => {
     if (!user) {
       toast.error("Please login to add items");
       return false;
