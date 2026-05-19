@@ -28,6 +28,11 @@ export const CartProvider = ({ children }) => {
     refresh();
   }, [refresh]);
 
+  const removeItem = useCallback(async (product_id) => {
+    await api.delete(`/cart/items/${product_id}`);
+    await refresh();
+  }, [refresh]);
+
   const addToCart = useCallback(async (product_id, quantity = 1) => {
     if (!user) {
       toast.error("Please login to add items");
@@ -41,14 +46,10 @@ export const CartProvider = ({ children }) => {
 
   const updateQty = useCallback(async (product_id, quantity) => {
     if (quantity < 1) return removeItem(product_id);
+
     await api.put(`/cart/items/${product_id}`, { product_id, quantity });
     await refresh();
-  }, [refresh]);
-
-  const removeItem = useCallback(async (product_id) => {
-    await api.delete(`/cart/items/${product_id}`);
-    await refresh();
-  }, [refresh]);
+  }, [refresh, removeItem]);
 
   const clearCart = useCallback(async () => {
     await api.delete("/cart");
